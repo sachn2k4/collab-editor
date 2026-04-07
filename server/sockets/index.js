@@ -28,7 +28,7 @@ module.exports = (io) => {
     socket.on('code-change', ({ roomId, content }) => {
       socket.to(roomId).emit('code-update', content);
       // Fully redundant fast-saving loop for robust code preservation
-      Room.findOneAndUpdate({ roomId }, { content }).exec().catch(err => console.error("Code save err:", err));
+      Room.findByIdAndUpdate(roomId, { content }).exec().catch(err => console.error("Code save err:", err));
     });
 
     socket.on('typing', ({ roomId, userName }) => {

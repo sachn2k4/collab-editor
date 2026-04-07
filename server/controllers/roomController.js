@@ -10,10 +10,9 @@ const createRoom = async (req, res) => {
       return res.status(400).json({ message: 'Room name is required' });
     }
 
-    const roomId = uuidv4();
+    
     
     const room = await Room.create({
-      roomId,
       name,
       owner: req.user._id,
       language: language || 'javascript',
@@ -38,7 +37,7 @@ const getRooms = async (req, res) => {
 
 const getRoomById = async (req, res) => {
   try {
-    const room = await Room.findOne({ roomId: req.params.roomId }).populate('owner', 'name email');
+    const room = await Room.findById(req.params.roomId).populate('owner', 'name email');
     if (!room) {
       return res.status(404).json({ message: 'Room not found' });
     }
@@ -58,7 +57,7 @@ const saveVersion = async (req, res) => {
       return res.status(400).json({ message: 'Code content is required to save' });
     }
 
-    const room = await Room.findOne({ roomId });
+    const room = await Room.findById(roomId);
     if (!room) {
       return res.status(404).json({ message: 'Room not found' });
     }
@@ -81,7 +80,7 @@ const saveVersion = async (req, res) => {
 
 const getVersions = async (req, res) => {
   try {
-    const room = await Room.findOne({ roomId: req.params.roomId });
+    const room = await Room.findById(req.params.roomId);
     if (!room) return res.status(404).json({ message: 'Room not found' });
 
     const versions = await Version.find({ room: room._id }).populate('author', 'name').sort({ createdAt: -1 });
@@ -95,7 +94,7 @@ const getVersions = async (req, res) => {
 
 const deleteRoom = async (req, res) => {
   try {
-    const room = await Room.findOne({ roomId: req.params.roomId });
+    const room = await Room.findById(req.params.roomId);
     if (!room) return res.status(404).json({ message: 'Room not found' });
     
     // Ensure only owner can delete
@@ -103,7 +102,7 @@ const deleteRoom = async (req, res) => {
        return res.status(403).json({ message: 'Not authorized to delete this room' });
     }
     
-    await Room.deleteOne({ roomId: req.params.roomId });
+    await Room.findByIdAndDelete(req.params.roomId);
     await Message.deleteMany({ roomId: req.params.roomId });
     await Version.deleteMany({ room: room._id });
     
