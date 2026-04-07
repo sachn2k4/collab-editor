@@ -33,6 +33,10 @@ module.exports = (io) => {
       socket.to(roomId).emit('typing-indicator', { userName });
     });
 
+    socket.on('send-message', ({ roomId, message, userName }) => {
+      io.to(roomId).emit('receive-message', { userName, message, timestamp: Date.now() });
+    });
+
     socket.on('leave-room', ({ roomId }) => {
       leaveRoom(socket, roomId);
     });
