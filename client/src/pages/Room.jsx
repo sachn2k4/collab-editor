@@ -41,13 +41,13 @@ export default function Room() {
 
     const fetchRoom = async () => {
       try {
-        const res = await API.get(`/api/rooms/${roomId}`);
+        const res = await API.get(`/rooms/${roomId}`);
         setRoomDetails(res?.data || null);
         setContent(res?.data?.content || '');
         setCurrentLang(res?.data?.language || 'javascript');
         
         // Fetch Persistent Messages Safely
-        const msgRes = await API.get(`/api/messages/${roomId}`);
+        const msgRes = await API.get(`/messages/${roomId}`);
         if (msgRes?.data) setMessages(msgRes.data);
       } catch (err) {
         console.error("Room fetch crash handled:", err);
@@ -168,7 +168,7 @@ export default function Room() {
 
   const handleSaveVersion = async () => {
     try {
-      await API.post(`/api/rooms/${roomId}/save`, { content });
+      await API.post(`/rooms/${roomId}/save`, { content });
       toast.success('Architecture matrix saved successfully.');
     } catch (err) {
       console.error(err);
@@ -188,7 +188,7 @@ export default function Room() {
   const handleDestroyRoom = async () => {
     if(window.confirm("CRITICAL WARNING: Are you sure you want to permanently destory this room and all persistent chat history? This action cannot be undone.")) {
        try {
-         await API.delete(`/api/rooms/${roomId}`);
+         await API.delete(`/rooms/${roomId}`);
          socketRef.current?.emit('destroy-room', { roomId });
          toast.success("Sandbox terminated permanently.");
          navigate('/');
@@ -216,7 +216,7 @@ export default function Room() {
     socketRef.current?.emit('send-message', { roomId, message: chatInput, userName: user?.name });
     setChatInput('');
     
-    API.post(`/api/messages/${roomId}`, { messageId: tempMsg.id, userName: user?.name, message: chatInput }).catch(err => console.error("Message Persistence Error:", err));
+    API.post(`/messages/${roomId}`, { messageId: tempMsg.id, userName: user?.name, message: chatInput }).catch(err => console.error("Message Persistence Error:", err));
   };
 
   // STEP 3: ADD LOADING UI

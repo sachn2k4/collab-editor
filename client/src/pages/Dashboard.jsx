@@ -15,7 +15,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      API.get('/api/rooms').then(res => setRooms(res.data)).catch(console.error);
+      API.get('/rooms').then(res => setRooms(res.data)).catch(console.error);
     } else {
       navigate('/login');
     }
@@ -24,7 +24,7 @@ export default function Dashboard() {
   const handleCreateRoom = async (e) => {
     e.preventDefault();
     try {
-      const res = await API.post('/api/rooms', { name: roomName });
+      const res = await API.post('/rooms', { name: roomName });
       navigate(`/room/${res.data._id}`);
     } catch (err) {
       alert('Error creating room');
