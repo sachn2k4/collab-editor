@@ -30,8 +30,9 @@ export default function Room() {
     if (!user) return navigate('/login');
 
     const fetchRoom = async () => {
+      console.log("Room.jsx: Initializing fetch for Room ID:", roomId);
       try {
-        const res = await api.get(`/rooms/${roomId}`);
+        const res = await API.get(`/api/rooms/${roomId}`);
         setRoomDetails(res.data);
         setContent(res.data.content);
         setLoading(false);
@@ -99,7 +100,7 @@ export default function Room() {
 
   const handleSaveVersion = async () => {
     try {
-      await api.post(`/rooms/${roomId}/save`, { content });
+      await API.post(`/api/rooms/${roomId}/save`, { content });
       alert('Version saved to database explicitly.');
     } catch (err) {
       console.error(err);

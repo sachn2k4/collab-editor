@@ -30,6 +30,7 @@ export default function Dashboard() {
   };
 
   const handleJoinRoom = (e) => {
+    console.log("Dashboard.jsx: Attempting to join Room ID:", joinRoomId);
     e.preventDefault();
     if (joinRoomId.trim()) {
       navigate(`/room/${joinRoomId}`);
@@ -69,7 +70,10 @@ export default function Dashboard() {
                     <h4 className="font-bold text-lg">{room.name}</h4>
                     <p className="text-sm text-zinc-500">ID: {room.roomId}</p>
                   </div>
-                  <button onClick={() => navigate(`/room/${room.roomId}`)} className="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-zinc-300">Open</button>
+                  <button onClick={() => {
+                      console.log("Dashboard.jsx: Opening Room ID:", room.roomId || room._id);
+                      navigate(`/room/${room.roomId || room._id}`);
+                  }} className="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-zinc-300">Open</button>
                 </div>
               ))}
             </div>
