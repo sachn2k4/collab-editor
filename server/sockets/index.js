@@ -1,4 +1,5 @@
 const Room = require('../models/Room');
+const crypto = require('crypto');
 
 module.exports = (io) => {
   const roomUsers = new Map(); // roomId -> Set of users ( {socketId, userId, name} )
@@ -13,7 +14,7 @@ module.exports = (io) => {
       
       const usersInRoom = roomUsers.get(roomId);
       
-      // Deduplicate by userId: remove old socket connection for same userId
+      // Deduplicate by userId
       for (let [existingSocketId, existingUser] of usersInRoom.entries()) {
         if (existingUser.userId === user.userId) {
           usersInRoom.delete(existingSocketId);
@@ -34,7 +35,11 @@ module.exports = (io) => {
     });
 
     socket.on('send-message', ({ roomId, message, userName }) => {
-      io.to(roomId).emit('receive-message', { userName, message, timestamp: Date.now() });
+      io.to(roomId).emit('receive-message', { id: crypto.randomUUID(), userName, message, timestamp: Date.now(), seenBy: [] });
+    });
+
+    socket.on('message-seen', ({ roomId, messageIds, userName }) => {
+      socket.to(roomId).emit('message-seen-update', { messageIds, userName });
     });
 
     socket.on('language-change', ({ roomId, language, userName }) => {

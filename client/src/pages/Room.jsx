@@ -5,7 +5,7 @@ import API from '../utils/api';
 import { AuthContext } from '../context/AuthContext';
 import Editor from '../components/Editor';
 import Spinner from '../components/Spinner';
-import { Users, Copy, Save, AlertCircle, MessageSquare, Send, X, LogOut, Code2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Copy, Save, AlertCircle, MessageSquare, Send, X, LogOut, Code2, ChevronDown, ChevronUp, Check, CheckCheck } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -79,12 +79,28 @@ export default function Room() {
     });
     
     socketRef.current.on('receive-message', (data) => {
-      setMessages((prev) => [...prev, data]);
+      setMessages((prev) => {
+        if (chatOpen && data.userName !== user.name) {
+          socketRef.current?.emit('message-seen', { roomId, messageIds: [data.id], userName: user.name });
+        }
+        return [...prev, data];
+      });
+    });
+
+    socketRef.current.on('message-seen-update', ({ messageIds, userName }) => {
+      setMessages((prev) => prev.map(msg => {
+        if (messageIds.includes(msg.id)) {
+           const newSeen = new Set(msg.seenBy || []);
+           newSeen.add(userName);
+           return { ...msg, seenBy: Array.from(newSeen) };
+        }
+        return msg;
+      }));
     });
     
     socketRef.current.on('language-updated', ({ language, userName }) => {
       setCurrentLang(language);
-      toast('`${userName}` changed language to `${language}`', { icon: '⚙️', style: { borderRadius: '10px', background: '#333', color: '#fff' }});
+      toast(`${userName} changed language to ${language}`, { icon: '⚙️', style: { borderRadius: '10px', background: '#333', color: '#fff' }});
     });
 
     socketRef.current.on('disconnect', () => {
@@ -98,10 +114,20 @@ export default function Room() {
 
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      socketRef.current.off('connect');
+      socketRef.current.off('user-joined');
+      socketRef.current.off('user-left');
+      socketRef.current.off('code-update');
+      socketRef.current.off('typing-indicator');
+      socketRef.current.off('receive-message');
+      socketRef.current.off('message-seen-update');
+      socketRef.current.off('language-updated');
+      socketRef.current.off('disconnect');
+      socketRef.current.off('reconnect');
       socketRef.current.emit('leave-room', { roomId });
       socketRef.current.disconnect();
     };
-  }, [roomId, user, roomDetails]);
+  }, [roomId, user, roomDetails, chatOpen]);
 
   useEffect(() => {
     if (socketRef.current && debouncedContent !== syncedContent && roomDetails) {
@@ -155,7 +181,7 @@ export default function Room() {
   if (loading) return <Spinner />;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="flex h-screen bg-transparent text-white overflow-hidden p-2 lg:p-4 gap-4 relative z-10">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="flex flex-col md:flex-row h-screen bg-transparent text-white overflow-hidden p-2 lg:p-4 gap-4 relative z-10">
       <div className="absolute inset-0 z-[-1] bg-gradient-to-br from-[#0c0c16] via-[#120f26] to-[#0a0a0a] animate-gradient-xy"></div>
       
       {/* Dynamic Sidebar */}
@@ -181,7 +207,7 @@ export default function Room() {
             </div>
           </div>
           <ul className="space-y-2">
-            {users.length === 0 && <div className="text-xs text-zinc-500 italic mt-2 px-1">Waiting for peers to connect...</div>}
+            {users.length === 0 && <div className="text-[13px] text-zinc-500 italic mt-2 px-1">Waiting for peers to connect...</div>}
             {users.map(u => (
               <li key={u.socketId} className="flex items-center justify-between text-sm bg-white/5 hover:bg-white/10 transition-colors px-3 py-2 rounded-xl border border-white/5 shadow-sm">
                 <span className="truncate flex items-center space-x-3">
@@ -223,7 +249,17 @@ export default function Room() {
                           <div className={`px-4 py-3 rounded-2xl max-w-[85%] text-[14px] shadow-sm leading-relaxed tracking-wide ${isMe ? 'bg-gradient-to-br from-blue-600 to-blue-500 rounded-tr-sm text-white shadow-blue-500/20' : 'bg-black/60 backdrop-blur-md rounded-tl-sm text-zinc-200 border border-white/10'}`}>
                             {msg.message}
                           </div>
-                          <span className="text-[9px] text-zinc-600 mt-1 px-1 font-mono">{timeStr}</span>
+                          
+                          {/* Timestamps and Read Receipts */}
+                          <div className="flex items-center space-x-1 mt-1.5 px-1">
+                            <span className="text-[9px] text-zinc-600 font-mono flex-1 text-right">{timeStr}</span>
+                            {isMe && (
+                               msg.seenBy?.length > 0
+                                 ? <CheckCheck size={14} className="text-blue-400 drop-shadow-sm" />
+                                 : <Check size={14} className="text-zinc-500" />
+                            )}
+                          </div>
+                          
                         </motion.div>
                       )
                     })
