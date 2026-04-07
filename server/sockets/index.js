@@ -37,6 +37,10 @@ module.exports = (io) => {
       io.to(roomId).emit('receive-message', { userName, message, timestamp: Date.now() });
     });
 
+    socket.on('language-change', ({ roomId, language, userName }) => {
+      socket.to(roomId).emit('language-updated', { language, userName });
+    });
+
     socket.on('leave-room', ({ roomId }) => {
       leaveRoom(socket, roomId);
     });
