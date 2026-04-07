@@ -1,4 +1,5 @@
 const Room = require('../models/Room');
+const Message = require('../models/Message');
 const Version = require('../models/Version');
 const { v4: uuidv4 } = require('uuid');
 
@@ -91,4 +92,26 @@ const getVersions = async (req, res) => {
   }
 };
 
-module.exports = { createRoom, getRooms, getRoomById, saveVersion, getVersions };
+
+const deleteRoom = async (req, res) => {
+  try {
+    const room = await Room.findOne({ roomId: req.params.roomId });
+    if (!room) return res.status(404).json({ message: 'Room not found' });
+    
+    // Ensure only owner can delete
+    if (room.owner.toString() !== req.user._id.toString()) {
+       return res.status(403).json({ message: 'Not authorized to delete this room' });
+    }
+    
+    await Room.deleteOne({ roomId: req.params.roomId });
+    await Message.deleteMany({ roomId: req.params.roomId });
+    await Version.deleteMany({ room: room._id });
+    
+    res.json({ success: true, message: 'Room destroyed successfully' });
+  } catch (error) {
+    console.error('Delete Room Error:', error);
+    res.status(500).json({ message: 'Failed to delete room' });
+  }
+};
+
+module.exports = { createRoom, getRooms, getRoomById, saveVersion, getVersions, deleteRoom };

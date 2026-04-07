@@ -43,6 +43,11 @@ export default function Room() {
         setRoomDetails(res.data);
         setContent(res.data.content);
         setCurrentLang(res.data.language || 'javascript');
+        
+        // Fetch Persistent Messages
+        const msgRes = await API.get(`/api/messages/${roomId}`);
+        if (msgRes.data) setMessages(msgRes.data);
+        
         setLoading(false);
       } catch (err) {
         console.error(err);
@@ -66,6 +71,10 @@ export default function Room() {
 
     socketRef.current.on('user-joined', (activeUsers) => setUsers(activeUsers));
     socketRef.current.on('user-left', (activeUsers) => setUsers(activeUsers));
+    socketRef.current.on('room-destroyed', () => {
+      toast.error('The Administrator has permanently terminated this Sandbox.');
+      navigate('/');
+    });
     
     socketRef.current.on('code-update', (newContent) => {
       setSyncedContent(newContent);
@@ -117,6 +126,7 @@ export default function Room() {
       socketRef.current.off('connect');
       socketRef.current.off('user-joined');
       socketRef.current.off('user-left');
+      socketRef.current.off('room-destroyed');
       socketRef.current.off('code-update');
       socketRef.current.off('typing-indicator');
       socketRef.current.off('receive-message');
@@ -165,9 +175,21 @@ export default function Room() {
     toast.success('Session ID copied to clipboard!');
   };
   
-  const handleExitRoom = () => {
-    if(window.confirm("Are you sure you want to disconnect from this collaboration session?")) {
-       navigate('/');
+  const handleLeaveRoom = () => {
+    if(window.confirm("Disconnect from session and return to Dashboard?")) { navigate('/'); }
+  };
+
+  const handleDestroyRoom = async () => {
+    if(window.confirm("CRITICAL WARNING: Are you sure you want to permanently destory this room and all persistent chat history? This action cannot be undone.")) {
+       try {
+         await API.delete(`/api/rooms/${roomId}`);
+         socketRef.current.emit('destroy-room', { roomId });
+         toast.success("Sandbox terminated permanently.");
+         navigate('/');
+       } catch (err) {
+         toast.error("Failed to execute termination command.");
+         console.error(err);
+       }
     }
   };
   
@@ -188,6 +210,9 @@ export default function Room() {
     
     socketRef.current.emit('send-message', { roomId, message: chatInput, userName: user.name });
     setChatInput('');
+    
+    // Asynchronously write to permanent local DB to enforce SaaS persistence
+    API.post(`/api/messages/${roomId}`, { messageId: tempMsg.id, userName: user.name, message: chatInput }).catch(err => console.error("Message Persistence Error:", err));
   };
 
   if (loading) return <Spinner />;
@@ -327,10 +352,17 @@ export default function Room() {
               </button>
            </div>
            
-           <button onClick={handleExitRoom} className="flex items-center space-x-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-4 py-1.5 rounded-lg transition-colors text-xs font-bold text-red-400 shadow-inner">
-             <LogOut size={14} />
-             <span>Exit Sandbox</span>
-           </button>
+           {user._id === roomDetails?.owner?._id ? (
+             <button onClick={handleDestroyRoom} className="flex items-center space-x-2 bg-red-600 hover:bg-red-500 px-4 py-1.5 rounded-lg transition-colors text-xs font-bold text-white shadow-glow hover:shadow-glow-lg border border-red-400">
+               <LogOut size={14} />
+               <span>Destroy Sandbox</span>
+             </button>
+           ) : (
+             <button onClick={handleLeaveRoom} className="flex items-center space-x-2 bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 rounded-lg transition-colors text-xs font-bold text-zinc-300 shadow-inner border border-zinc-600">
+               <LogOut size={14} />
+               <span>Leave Session</span>
+             </button>
+           )}
         </div>
         
         {/* Engine Render */}

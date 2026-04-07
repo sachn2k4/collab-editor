@@ -27,6 +27,7 @@ module.exports = (io) => {
 
     socket.on('code-change', ({ roomId, content }) => {
       socket.to(roomId).emit('code-update', content);
+      // Fully redundant fast-saving loop for robust code preservation
       Room.findOneAndUpdate({ roomId }, { content }).exec().catch(err => console.error("Code save err:", err));
     });
 
@@ -44,6 +45,10 @@ module.exports = (io) => {
 
     socket.on('language-change', ({ roomId, language, userName }) => {
       socket.to(roomId).emit('language-updated', { language, userName });
+    });
+
+    socket.on('destroy-room', ({ roomId }) => {
+      socket.to(roomId).emit('room-destroyed');
     });
 
     socket.on('leave-room', ({ roomId }) => {
