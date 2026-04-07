@@ -63,7 +63,7 @@ export default function Room() {
     socketRef.current = io(import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000');
     
     const joinRoom = () => {
-      socketRef.current.emit('join-room', { roomId, user: { userId: user._id, name: user.name } });
+      socketRef.current.emit('join-room', { roomId, user: { userId: user?._id, name: user?.name } });
     };
 
     socketRef.current.on('connect', joinRoom);
@@ -89,8 +89,8 @@ export default function Room() {
     
     socketRef.current.on('receive-message', (data) => {
       setMessages((prev) => {
-        if (chatOpen && data.userName !== user.name) {
-          socketRef.current?.emit('message-seen', { roomId, messageIds: [data.id], userName: user.name });
+        if (chatOpen && data.userName !== user?.name) {
+          socketRef.current?.emit('message-seen', { roomId, messageIds: [data.id], userName: user?.name });
         }
         return [...prev, data];
       });
@@ -151,13 +151,13 @@ export default function Room() {
 
   const handleCodeChange = (newContent) => {
     setContent(newContent);
-    if (socketRef.current) socketRef.current.emit('typing', { roomId, userName: user.name });
+    if (socketRef.current) socketRef.current.emit('typing', { roomId, userName: user?.name });
   };
 
   const changeLanguage = (e) => {
     const lang = e.target.value;
     setCurrentLang(lang);
-    socketRef.current.emit('language-change', { roomId, language: lang, userName: user.name });
+    socketRef.current.emit('language-change', { roomId, language: lang, userName: user?.name });
   };
 
   const handleSaveVersion = async () => {
@@ -200,7 +200,7 @@ export default function Room() {
     // Optimistic local push for immediate feedback
     const tempMsg = {
       id: Date.now().toString() + Math.random().toString(),
-      userName: user.name,
+      userName: user?.name,
       message: chatInput,
       timestamp: Date.now(),
       seenBy: []
@@ -208,11 +208,11 @@ export default function Room() {
     
     setMessages(prev => [...prev, tempMsg]);
     
-    socketRef.current.emit('send-message', { roomId, message: chatInput, userName: user.name });
+    socketRef.current.emit('send-message', { roomId, message: chatInput, userName: user?.name });
     setChatInput('');
     
     // Asynchronously write to permanent local DB to enforce SaaS persistence
-    API.post(`/api/messages/${roomId}`, { messageId: tempMsg.id, userName: user.name, message: chatInput }).catch(err => console.error("Message Persistence Error:", err));
+    API.post(`/api/messages/${roomId}`, { messageId: tempMsg.id, userName: user?.name, message: chatInput }).catch(err => console.error("Message Persistence Error:", err));
   };
 
   if (loading) return <Spinner />;
@@ -227,7 +227,7 @@ export default function Room() {
         {/* Room Header Info */}
         <div className="p-4 border-b border-white/10 bg-black/20 flex flex-col gap-2">
           <div className="flex justify-between items-center">
-             <h2 className="text-xl font-bold truncate bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent flex-1 mr-2">{roomDetails.name}</h2>
+             <h2 className="text-xl font-bold truncate bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent flex-1 mr-2">{roomDetails?.name}</h2>
           </div>
           <div className="flex items-center space-x-2 text-zinc-400 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5 cursor-pointer hover:bg-black/60 transition-colors shadow-inner" onClick={copyRoomId} title="Click to Copy">
             <span className="text-xs truncate font-mono tracking-widest">{roomId}</span>
@@ -244,8 +244,8 @@ export default function Room() {
             </div>
           </div>
           <ul className="space-y-2">
-            {users.length === 0 && <div className="text-[13px] text-zinc-500 italic mt-2 px-1">Waiting for peers to connect...</div>}
-            {users.map(u => (
+            {(!users || users.length === 0) && <div className="text-[13px] text-zinc-500 italic mt-2 px-1">Waiting for peers to connect...</div>}
+            {(users || []).map(u => (
               <li key={u.socketId} className="flex items-center justify-between text-sm bg-white/5 hover:bg-white/10 transition-colors px-3 py-2 rounded-xl border border-white/5 shadow-sm">
                 <span className="truncate flex items-center space-x-3">
                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-glow relative">
@@ -254,7 +254,7 @@ export default function Room() {
                    </div>
                    <span className="font-medium text-zinc-200">{u.name}</span>
                 </span>
-                {u.userId === user._id && <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 bg-black/50 px-2 py-0.5 rounded-full">You</span>}
+                {u.userId === user?._id && <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 bg-black/50 px-2 py-0.5 rounded-full">You</span>}
               </li>
             ))}
           </ul>
@@ -274,11 +274,11 @@ export default function Room() {
           {chatOpen && (
             <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="flex-1 flex flex-col min-h-0 bg-black/10">
               <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar display-flex flex-col">
-                {messages.length === 0 ? (
+                {(!messages || messages.length === 0) ? (
                    <div className="h-full flex items-center justify-center text-[13px] font-medium text-zinc-500 italic text-center px-4">No messages yet — start the conversation!</div>
                 ) : (
-                    messages.map((msg, idx) => {
-                      const isMe = msg.userName === user.name;
+                    (messages || []).map((msg, idx) => {
+                      const isMe = msg.userName === user?.name;
                       const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                       return (
                         <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
@@ -352,7 +352,7 @@ export default function Room() {
               </button>
            </div>
            
-           {user._id === roomDetails?.owner?._id ? (
+           {user?._id === roomDetails?.owner?._id ? (
              <button onClick={handleDestroyRoom} className="flex items-center space-x-2 bg-red-600 hover:bg-red-500 px-4 py-1.5 rounded-lg transition-colors text-xs font-bold text-white shadow-glow hover:shadow-glow-lg border border-red-400">
                <LogOut size={14} />
                <span>Destroy Sandbox</span>

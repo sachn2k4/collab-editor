@@ -63,7 +63,7 @@ export default function Signup() {
           <p className="text-zinc-400 text-sm mb-8">Join the global network and start coding.</p>
           
           {errorMsg && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg flex items-center space-x-3 text-sm shadow-inner hidden">
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg flex items-center space-x-3 text-sm shadow-inner">
               <ShieldAlert size={16} className="shrink-0" />
               <span>{errorMsg}</span>
             </motion.div>

@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const token = localStorage.getItem('token');
+      const token = (localStorage.getItem('token') || null);
       if (token) {
         try {
           const res = await API.get('/api/auth/me');

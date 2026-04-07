@@ -75,11 +75,11 @@ export default function Dashboard() {
             <span>Recent Sandboxes</span>
             <div className="h-px bg-gradient-to-r from-zinc-700 to-transparent flex-1 ml-4"></div>
           </h3>
-          {rooms.length === 0 ? (
+          {(rooms?.length || 0) === 0 ? (
             <p className="text-zinc-500 italic text-sm">No environments populated.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rooms.map(room => (
+              {(rooms || []).map(room => (
                 <div key={room._id} onClick={() => navigate(`/room/${room.roomId || room._id}`)} className="bg-white/5 hover:bg-white/10 cursor-pointer backdrop-blur-xl p-6 rounded-2xl flex flex-col justify-between border border-white/10 transition-all hover:border-white/20 group hover:-translate-y-1 shadow-lg">
                   <div className="flex items-start justify-between mb-6">
                      <div className="p-2 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors"><Terminal size={20} className="text-blue-400" /></div>
