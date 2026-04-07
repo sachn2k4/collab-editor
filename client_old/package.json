@@ -1,0 +1,14 @@
+{
+  "devDependencies": {
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "axios": "^1.14.0",
+    "lucide-react": "^1.7.0",
+    "react-router-dom": "^7.14.0",
+    "socket.io-client": "^4.8.3"
+  }
+}
