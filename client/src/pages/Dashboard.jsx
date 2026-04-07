@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import api from '../utils/api';
+import API from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 
@@ -13,7 +13,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      api.get('/rooms').then(res => setRooms(res.data)).catch(console.error);
+      API.get('/api/rooms').then(res => setRooms(res.data)).catch(console.error);
     } else {
       navigate('/login');
     }
@@ -22,7 +22,7 @@ export default function Dashboard() {
   const handleCreateRoom = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post('/rooms', { name: roomName });
+      const res = await API.post('/api/rooms', { name: roomName });
       navigate(`/room/${res.data.roomId}`);
     } catch (err) {
       alert('Error creating room');

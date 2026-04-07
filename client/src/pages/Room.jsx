@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import api from '../utils/api';
+import API from '../utils/api';
 import { AuthContext } from '../context/AuthContext';
 import Editor from '../components/Editor';
 import Spinner from '../components/Spinner';
