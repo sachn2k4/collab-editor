@@ -5,11 +5,12 @@ import { Anchor, ShieldAlert, Zap, Globe, MessageSquare, Terminal } from 'lucide
 import { motion } from 'framer-motion';
 
 export default function Signup() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useContext(AuthContext);
+  const { signup } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -17,10 +18,10 @@ export default function Signup() {
     setIsSubmitting(true);
     setErrorMsg('');
     try {
-      await signup(name, name, email, password);
+      await signup(name, email, password);
       navigate('/');
     } catch (err) {
-      setErrorMsg(err);
+      setErrorMsg(err.toString());
     } finally {
       setIsSubmitting(false);
     }
@@ -28,7 +29,6 @@ export default function Signup() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex items-center justify-center p-4">
-      {/* Animated Blueprint */}
       <div className="absolute inset-0 z-0 bg-gradient-to-br from-blue-900 via-purple-900 to-black animate-gradient-xy"></div>
       <div className="absolute inset-0 z-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
       
@@ -71,7 +71,7 @@ export default function Signup() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative group">
-               <input type="email" id="text" id="name" required className="peer w-full p-4 pt-6 rounded-xl bg-black/40 border border-zinc-700/50 focus:outline-none focus:border-blue-500/60 transition-all text-white placeholder-transparent" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+               <input type="text" id="name" required className="peer w-full p-4 pt-6 rounded-xl bg-black/40 border border-zinc-700/50 focus:outline-none focus:border-blue-500/60 transition-all text-white placeholder-transparent" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
                <label htmlFor="name" className="absolute left-4 top-1.5 text-xs text-zinc-500 transition-all peer-placeholder-shown:text-base peer-placeholder-shown:top-4 peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-blue-400 pointer-events-none">Full Name</label>
             </div>
             <div className="relative group">
@@ -91,7 +91,7 @@ export default function Signup() {
             </button>
           </form>
           <p className="mt-8 text-center text-zinc-400 text-sm">
-            Not configured yet? <Link to="/login" className="text-blue-400 hover:text-purple-400 font-semibold transition-colors ml-1">Authenticate existing account</Link>
+            Already configured? <Link to="/login" className="text-blue-400 hover:text-purple-400 font-semibold transition-colors ml-1">Authenticate existing account</Link>
           </p>
         </div>
       </div>

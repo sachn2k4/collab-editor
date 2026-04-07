@@ -174,6 +174,18 @@ export default function Room() {
   const sendChatMessage = (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
+    
+    // Optimistic local push for immediate feedback
+    const tempMsg = {
+      id: Date.now().toString() + Math.random().toString(),
+      userName: user.name,
+      message: chatInput,
+      timestamp: Date.now(),
+      seenBy: []
+    };
+    
+    setMessages(prev => [...prev, tempMsg]);
+    
     socketRef.current.emit('send-message', { roomId, message: chatInput, userName: user.name });
     setChatInput('');
   };
