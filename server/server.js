@@ -10,7 +10,11 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+const corsOptions = {
+  origin: true,
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -18,7 +22,7 @@ app.use('/api/rooms', require('./routes/roomRoutes'));
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: process.env.FRONTEND_URL, methods: ['GET', 'POST'] },
+  cors: corsOptions,
 });
 
 require('./sockets')(io);
