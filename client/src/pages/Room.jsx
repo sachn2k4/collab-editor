@@ -15,6 +15,7 @@ export default function Room() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   
+  // STEP 2: SAFE STATE INITIALIZATION
   const [roomDetails, setRoomDetails] = useState(null);
   const [content, setContent] = useState('');
   const [syncedContent, setSyncedContent] = useState('');
@@ -34,72 +35,75 @@ export default function Room() {
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
+  // STEP 4: FIX ROOM FETCH API
   useEffect(() => {
     if (!user) return navigate('/login');
 
     const fetchRoom = async () => {
       try {
         const res = await API.get(`/api/rooms/${roomId}`);
-        setRoomDetails(res.data);
-        setContent(res.data.content);
-        setCurrentLang(res.data.language || 'javascript');
+        setRoomDetails(res?.data || null);
+        setContent(res?.data?.content || '');
+        setCurrentLang(res?.data?.language || 'javascript');
         
-        // Fetch Persistent Messages
+        // Fetch Persistent Messages Safely
         const msgRes = await API.get(`/api/messages/${roomId}`);
-        if (msgRes.data) setMessages(msgRes.data);
-        
-        setLoading(false);
+        if (msgRes?.data) setMessages(msgRes.data);
       } catch (err) {
-        console.error(err);
-        navigate('/');
+        console.error("Room fetch crash handled:", err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchRoom();
   }, [roomId, user, navigate]);
 
+  // STEP 5: SOCKET STABILITY & CLEANUP
   useEffect(() => {
-    if (!user || !roomDetails) return;
+    if (!roomId || !user || !roomDetails) return;
 
     socketRef.current = io(import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000');
     
     const joinRoom = () => {
-      socketRef.current.emit('join-room', { roomId, user: { userId: user?._id, name: user?.name } });
+      socketRef.current.emit('join-room', { roomId, user: { userId: user?._id, name: user?.name || 'Anonymous' } });
     };
 
     socketRef.current.on('connect', joinRoom);
     if (socketRef.current.connected) joinRoom();
 
-    socketRef.current.on('user-joined', (activeUsers) => setUsers(activeUsers));
-    socketRef.current.on('user-left', (activeUsers) => setUsers(activeUsers));
+    socketRef.current.on('user-joined', (activeUsers) => setUsers(activeUsers || []));
+    socketRef.current.on('user-left', (activeUsers) => setUsers(activeUsers || []));
     socketRef.current.on('room-destroyed', () => {
       toast.error('The Administrator has permanently terminated this Sandbox.');
       navigate('/');
     });
     
     socketRef.current.on('code-update', (newContent) => {
-      setSyncedContent(newContent);
-      setContent(newContent);
+      setSyncedContent(newContent || '');
+      setContent(newContent || '');
     });
 
     socketRef.current.on('typing-indicator', ({ userName }) => {
-      setWhoIsTyping(userName);
+      setWhoIsTyping(userName || 'Someone');
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => setWhoIsTyping(''), 1500);
     });
     
     socketRef.current.on('receive-message', (data) => {
+      if (!data) return;
       setMessages((prev) => {
-        if (chatOpen && data.userName !== user?.name) {
-          socketRef.current?.emit('message-seen', { roomId, messageIds: [data.id], userName: user?.name });
+        if (chatOpen && data?.userName !== user?.name) {
+          socketRef.current?.emit('message-seen', { roomId, messageIds: [data?.id], userName: user?.name || 'User' });
         }
-        return [...prev, data];
+        return [...(prev || []), data];
       });
     });
 
     socketRef.current.on('message-seen-update', ({ messageIds, userName }) => {
-      setMessages((prev) => prev.map(msg => {
-        if (messageIds.includes(msg.id)) {
-           const newSeen = new Set(msg.seenBy || []);
+      if (!messageIds || !userName) return;
+      setMessages((prev) => (prev || []).map(msg => {
+        if (msg?.id && messageIds.includes(msg.id)) {
+           const newSeen = new Set(msg?.seenBy || []);
            newSeen.add(userName);
            return { ...msg, seenBy: Array.from(newSeen) };
         }
@@ -108,8 +112,8 @@ export default function Room() {
     });
     
     socketRef.current.on('language-updated', ({ language, userName }) => {
-      setCurrentLang(language);
-      toast(`${userName} changed language to ${language}`, { icon: '⚙️', style: { borderRadius: '10px', background: '#333', color: '#fff' }});
+      setCurrentLang(language || 'javascript');
+      toast(`${userName || 'Someone'} changed language to ${language || 'javascript'}`, { icon: '⚙️', style: { borderRadius: '10px', background: '#333', color: '#fff' }});
     });
 
     socketRef.current.on('disconnect', () => {
@@ -123,41 +127,43 @@ export default function Room() {
 
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      socketRef.current.off('connect');
-      socketRef.current.off('user-joined');
-      socketRef.current.off('user-left');
-      socketRef.current.off('room-destroyed');
-      socketRef.current.off('code-update');
-      socketRef.current.off('typing-indicator');
-      socketRef.current.off('receive-message');
-      socketRef.current.off('message-seen-update');
-      socketRef.current.off('language-updated');
-      socketRef.current.off('disconnect');
-      socketRef.current.off('reconnect');
-      socketRef.current.emit('leave-room', { roomId });
-      socketRef.current.disconnect();
+      if (socketRef.current) {
+        socketRef.current.off('connect');
+        socketRef.current.off('user-joined');
+        socketRef.current.off('user-left');
+        socketRef.current.off('room-destroyed');
+        socketRef.current.off('code-update');
+        socketRef.current.off('typing-indicator');
+        socketRef.current.off('receive-message');
+        socketRef.current.off('message-seen-update');
+        socketRef.current.off('language-updated');
+        socketRef.current.off('disconnect');
+        socketRef.current.off('reconnect');
+        socketRef.current.emit('leave-room', { roomId });
+        socketRef.current.disconnect();
+      }
     };
-  }, [roomId, user, roomDetails, chatOpen]);
+  }, [roomId, user, roomDetails, chatOpen, navigate]);
 
   useEffect(() => {
     if (socketRef.current && debouncedContent !== syncedContent && roomDetails) {
       socketRef.current.emit('code-change', { roomId, content: debouncedContent });
     }
-  }, [debouncedContent, roomId, roomDetails]);
+  }, [debouncedContent, roomId, roomDetails, syncedContent]);
 
   useEffect(() => {
     if(chatOpen) chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, chatOpen]);
 
   const handleCodeChange = (newContent) => {
-    setContent(newContent);
+    setContent(newContent || '');
     if (socketRef.current) socketRef.current.emit('typing', { roomId, userName: user?.name });
   };
 
   const changeLanguage = (e) => {
     const lang = e.target.value;
     setCurrentLang(lang);
-    socketRef.current.emit('language-change', { roomId, language: lang, userName: user?.name });
+    socketRef.current?.emit('language-change', { roomId, language: lang, userName: user?.name });
   };
 
   const handleSaveVersion = async () => {
@@ -171,7 +177,7 @@ export default function Room() {
   };
 
   const copyRoomId = () => {
-    navigator.clipboard.writeText(roomId);
+    navigator.clipboard.writeText(roomId || '');
     toast.success('Session ID copied to clipboard!');
   };
   
@@ -183,7 +189,7 @@ export default function Room() {
     if(window.confirm("CRITICAL WARNING: Are you sure you want to permanently destory this room and all persistent chat history? This action cannot be undone.")) {
        try {
          await API.delete(`/api/rooms/${roomId}`);
-         socketRef.current.emit('destroy-room', { roomId });
+         socketRef.current?.emit('destroy-room', { roomId });
          toast.success("Sandbox terminated permanently.");
          navigate('/');
        } catch (err) {
@@ -195,27 +201,29 @@ export default function Room() {
   
   const sendChatMessage = (e) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput?.trim()) return;
     
-    // Optimistic local push for immediate feedback
     const tempMsg = {
       id: Date.now().toString() + Math.random().toString(),
-      userName: user?.name,
+      userName: user?.name || 'Anonymous',
       message: chatInput,
       timestamp: Date.now(),
       seenBy: []
     };
     
-    setMessages(prev => [...prev, tempMsg]);
+    setMessages(prev => [...(prev || []), tempMsg]);
     
-    socketRef.current.emit('send-message', { roomId, message: chatInput, userName: user?.name });
+    socketRef.current?.emit('send-message', { roomId, message: chatInput, userName: user?.name });
     setChatInput('');
     
-    // Asynchronously write to permanent local DB to enforce SaaS persistence
     API.post(`/api/messages/${roomId}`, { messageId: tempMsg.id, userName: user?.name, message: chatInput }).catch(err => console.error("Message Persistence Error:", err));
   };
 
-  if (loading) return <Spinner />;
+  // STEP 3: ADD LOADING UI
+  if (loading) return <div className="text-white text-center mt-20 flex flex-col items-center"><Spinner /><span className="mt-4 text-xs font-mono">Loading Room...</span></div>;
+
+  // STEP 6: ERROR BOUNDARY
+  if (!roomDetails) return <div className="text-red-500 text-center mt-20 font-bold bg-black/40 p-10 max-w-md mx-auto rounded-xl border border-red-500/30">ERROR: Room not found or network connection failed.</div>;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="flex flex-col md:flex-row h-screen bg-transparent text-white overflow-hidden p-2 lg:p-4 gap-4 relative z-10">
@@ -223,11 +231,9 @@ export default function Room() {
       
       {/* Dynamic Sidebar */}
       <div className="w-full lg:w-80 hidden md:flex bg-white/5 backdrop-blur-2xl border border-white/10 flex-col flex-shrink-0 relative z-10 rounded-2xl shadow-2xl overflow-hidden">
-        
-        {/* Room Header Info */}
         <div className="p-4 border-b border-white/10 bg-black/20 flex flex-col gap-2">
           <div className="flex justify-between items-center">
-             <h2 className="text-xl font-bold truncate bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent flex-1 mr-2">{roomDetails?.name}</h2>
+             <h2 className="text-xl font-bold truncate bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent flex-1 mr-2">{roomDetails?.name || 'Untitled Room'}</h2>
           </div>
           <div className="flex items-center space-x-2 text-zinc-400 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5 cursor-pointer hover:bg-black/60 transition-colors shadow-inner" onClick={copyRoomId} title="Click to Copy">
             <span className="text-xs truncate font-mono tracking-widest">{roomId}</span>
@@ -240,21 +246,23 @@ export default function Room() {
           <div className="flex items-center justify-between text-zinc-300 mb-4 font-semibold uppercase text-xs tracking-widest">
             <div className="flex items-center space-x-2">
                <Users size={14} className="text-green-400" />
-               <span>Engineers ({users.length})</span>
+               <span>Engineers ({(users || []).length})</span>
             </div>
           </div>
           <ul className="space-y-2">
             {(!users || users.length === 0) && <div className="text-[13px] text-zinc-500 italic mt-2 px-1">Waiting for peers to connect...</div>}
+            
+            {/* STEP 1 & 9: PREVENT HARD CRASH WITH OPTIONAL MAP AND CHARAT */}
             {(users || []).map(u => (
-              <li key={u.socketId} className="flex items-center justify-between text-sm bg-white/5 hover:bg-white/10 transition-colors px-3 py-2 rounded-xl border border-white/5 shadow-sm">
+              <li key={u?.socketId || Math.random()} className="flex items-center justify-between text-sm bg-white/5 hover:bg-white/10 transition-colors px-3 py-2 rounded-xl border border-white/5 shadow-sm">
                 <span className="truncate flex items-center space-x-3">
                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-glow relative">
-                     {u.name.charAt(0).toUpperCase()}
+                     {(u?.name?.charAt(0) || '?').toUpperCase()}
                      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border border-black shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
                    </div>
-                   <span className="font-medium text-zinc-200">{u.name}</span>
+                   <span className="font-medium text-zinc-200">{u?.name || 'Anonymous'}</span>
                 </span>
-                {u.userId === user?._id && <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 bg-black/50 px-2 py-0.5 rounded-full">You</span>}
+                {u?.userId === user?._id && <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 bg-black/50 px-2 py-0.5 rounded-full">You</span>}
               </li>
             ))}
           </ul>
@@ -278,20 +286,22 @@ export default function Room() {
                    <div className="h-full flex items-center justify-center text-[13px] font-medium text-zinc-500 italic text-center px-4">No messages yet — start the conversation!</div>
                 ) : (
                     (messages || []).map((msg, idx) => {
-                      const isMe = msg.userName === user?.name;
-                      const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                      if (!msg) return null;
+                      const isMe = msg?.userName === user?.name;
+                      const timestampVal = msg?.timestamp ? new Date(msg.timestamp) : new Date();
+                      const timeStr = !isNaN(timestampVal) ? timestampVal.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...';
+                      
                       return (
                         <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                          <span className="text-[10px] font-semibold text-zinc-500 mb-1 px-1">{isMe ? 'You' : msg.userName}</span>
+                          <span className="text-[10px] font-semibold text-zinc-500 mb-1 px-1">{isMe ? 'You' : (msg?.userName || 'User')}</span>
                           <div className={`px-4 py-3 rounded-2xl max-w-[85%] text-[14px] shadow-sm leading-relaxed tracking-wide ${isMe ? 'bg-gradient-to-br from-blue-600 to-blue-500 rounded-tr-sm text-white shadow-blue-500/20' : 'bg-black/60 backdrop-blur-md rounded-tl-sm text-zinc-200 border border-white/10'}`}>
-                            {msg.message}
+                            {msg?.message || ''}
                           </div>
                           
-                          {/* Timestamps and Read Receipts */}
                           <div className="flex items-center space-x-1 mt-1.5 px-1">
                             <span className="text-[9px] text-zinc-600 font-mono flex-1 text-right">{timeStr}</span>
                             {isMe && (
-                               msg.seenBy?.length > 0
+                               msg?.seenBy?.length > 0
                                  ? <CheckCheck size={14} className="text-blue-400 drop-shadow-sm" />
                                  : <Check size={14} className="text-zinc-500" />
                             )}
@@ -306,7 +316,7 @@ export default function Room() {
 
               <form onSubmit={sendChatMessage} className="p-3 bg-black/30 border-t border-white/5 flex gap-2">
                 <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Send protocol..." className="flex-1 bg-black/40 border border-white/10 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/50 text-white transition-all" />
-                <button type="submit" disabled={!chatInput.trim()} className="bg-gradient-to-r from-pink-600 to-purple-600 disabled:opacity-50 hover:from-pink-500 hover:to-purple-500 text-white p-2.5 flex items-center justify-center rounded-full transition-all shadow-glow">
+                <button type="submit" disabled={!chatInput?.trim()} className="bg-gradient-to-r from-pink-600 to-purple-600 disabled:opacity-50 hover:from-pink-500 hover:to-purple-500 text-white p-2.5 flex items-center justify-center rounded-full transition-all shadow-glow">
                    <Send size={14} />
                 </button>
               </form>
@@ -314,7 +324,6 @@ export default function Room() {
           )}
         </AnimatePresence>
         
-        {/* Status Utilities */}
         <div className="bg-black/20">
           {whoIsTyping && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="px-4 py-2 flex items-center text-xs text-zinc-400 bg-black/40">
@@ -331,9 +340,7 @@ export default function Room() {
         </div>
       </div>
 
-      {/* Main Global Editor Core */}
       <div className="flex-1 flex flex-col relative rounded-2xl shadow-2xl border border-white/10 bg-[#1e1e1e] overflow-hidden">
-        {/* Editor Top Control Bar */}
         <div className="h-14 bg-black/40 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4 z-10 shrink-0">
            <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 bg-black/50 px-3 py-1.5 rounded-lg border border-white/5">
@@ -352,7 +359,7 @@ export default function Room() {
               </button>
            </div>
            
-           {user?._id === roomDetails?.owner?._id ? (
+           {user?._id && roomDetails?.owner?._id && user._id === roomDetails.owner._id ? (
              <button onClick={handleDestroyRoom} className="flex items-center space-x-2 bg-red-600 hover:bg-red-500 px-4 py-1.5 rounded-lg transition-colors text-xs font-bold text-white shadow-glow hover:shadow-glow-lg border border-red-400">
                <LogOut size={14} />
                <span>Destroy Sandbox</span>
@@ -365,7 +372,6 @@ export default function Room() {
            )}
         </div>
         
-        {/* Engine Render */}
         <div className="flex-1 relative min-h-0 bg-[#1a1a1a]">
           <Editor content={content} onChange={handleCodeChange} language={currentLang} />
         </div>
