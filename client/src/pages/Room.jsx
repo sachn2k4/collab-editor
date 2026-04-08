@@ -63,7 +63,7 @@ export default function Room() {
   useEffect(() => {
     if (!roomId || !user || !roomDetails) return;
 
-    socketRef.current = io(import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000');
+    socketRef.current = io(import.meta.env.MODE === 'production' ? '/' : 'http://localhost:5000');
     
     const joinRoom = () => {
       socketRef.current.emit('join-room', { roomId, user: { userId: user?._id, name: user?.name || 'Anonymous' } });
