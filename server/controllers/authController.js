@@ -3,7 +3,8 @@ const generateToken = require('../utils/generateToken');
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    let { name, email, password } = req.body;
+    if (email) email = email.toLowerCase().trim();
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide all required fields' });
@@ -38,7 +39,8 @@ const registerUser = async (req, res) => {
 
 const authUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+    if (email) email = email.toLowerCase().trim();
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
