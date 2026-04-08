@@ -1,9 +1,9 @@
 import axios from "axios";
 
-console.log("API URL:", import.meta.env.VITE_API_URL);
+console.log("API URL Mode:", import.meta.env.MODE);
 
 const API = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : "http://localhost:5000") + "/api"
+  baseURL: import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:5000/api'
 });
 
 API.interceptors.request.use((config) => {
