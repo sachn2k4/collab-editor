@@ -19,6 +19,7 @@ app.use(express.json());
 
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/rooms', require('./routes/roomRoutes'));
+app.use('/api/messages', require('./routes/messageRoutes'));
 
 const server = http.createServer(app);
 const io = new Server(server, {
