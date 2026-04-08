@@ -33,6 +33,7 @@ export default function Room() {
   const chatEndRef = useRef(null);
   
   const socketRef = useRef(null);
+  const isLocalUpdateRef = useRef(false);
   const typingTimeoutRef = useRef(null);
 
   // STEP 4: FIX ROOM FETCH API
@@ -78,8 +79,17 @@ export default function Room() {
       navigate('/');
     });
     
+    socketRef.current.on('sync-memory-state', ({ content }) => {
+      // Overwrite DB latency with direct RAM snapshot mapping
+      setSyncedContent(content || '');
+      // Prevent standard debounce firing cycle back upward on a generic incoming sync
+      isLocalUpdateRef.current = false;
+      setContent(content || '');
+    });
+
     socketRef.current.on('code-update', (newContent) => {
       setSyncedContent(newContent || '');
+      isLocalUpdateRef.current = false;
       setContent(newContent || '');
     });
 
@@ -132,6 +142,7 @@ export default function Room() {
         socketRef.current.off('user-joined');
         socketRef.current.off('user-left');
         socketRef.current.off('room-destroyed');
+        socketRef.current.off('sync-memory-state');
         socketRef.current.off('code-update');
         socketRef.current.off('typing-indicator');
         socketRef.current.off('receive-message');
@@ -146,8 +157,9 @@ export default function Room() {
   }, [roomId, user, roomDetails, chatOpen, navigate]);
 
   useEffect(() => {
-    if (socketRef.current && debouncedContent !== syncedContent && roomDetails) {
+    if (socketRef.current && debouncedContent !== syncedContent && roomDetails && isLocalUpdateRef.current) {
       socketRef.current.emit('code-change', { roomId, content: debouncedContent });
+      isLocalUpdateRef.current = false; // Lock immediately drops back
     }
   }, [debouncedContent, roomId, roomDetails, syncedContent]);
 
@@ -156,6 +168,7 @@ export default function Room() {
   }, [messages, chatOpen]);
 
   const handleCodeChange = (newContent) => {
+    isLocalUpdateRef.current = true;
     setContent(newContent || '');
     if (socketRef.current) socketRef.current.emit('typing', { roomId, userName: user?.name });
   };
